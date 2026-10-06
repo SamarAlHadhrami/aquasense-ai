@@ -900,10 +900,10 @@ elif page == "Recommendations":
                             actual = row["Energy_Consumption_kWh"]
                             expected = row[pred_col]
                             st.markdown('<div class="rec-field-label">Actual energy</div>'
-                                        f'<div class="rec-field-value">{actual:,.0f} kWh</div>',
+                                        f'<div class="rec-field-value">{actual:,.2f} kWh</div>',
                                         unsafe_allow_html=True)
                             st.markdown(f'<div class="rec-field-label">Expected ({pred_col})</div>'
-                                        f'<div class="rec-field-value">{expected:,.0f} kWh</div>',
+                                        f'<div class="rec-field-value">{expected:,.2f} kWh</div>',
                                         unsafe_allow_html=True)
                         else:
                             st.markdown('<div class="rec-field-value">Actual/Expected energy '
