@@ -433,15 +433,17 @@ data_min = df["Date"].min().date()
 data_max = df["Date"].max().date()
 
 _current_range = st.session_state.get("date_range_input")
+# A range pick takes two clicks, so a 1-element tuple (start only) is a valid
+# in-progress state and must not be reset.
 _valid = (
-    isinstance(_current_range, tuple) and len(_current_range) == 2
-    and data_min <= _current_range[0] <= data_max
-    and data_min <= _current_range[1] <= data_max
+    isinstance(_current_range, tuple) and len(_current_range) in (1, 2)
+    and all(data_min <= x <= data_max for x in _current_range)
 )
 if not _valid:
     st.session_state["date_range_input"] = (default_start, default_end)
 
-label_start, label_end = st.session_state["date_range_input"]
+_shown = st.session_state["date_range_input"]
+label_start, label_end = (_shown if len(_shown) == 2 else (_shown[0], _shown[0]))
 
 with date_col:
     with st.popover(f"📅 {label_start.strftime('%d %b %Y')} – {label_end.strftime('%d %b %Y')}",
