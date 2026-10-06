@@ -37,6 +37,7 @@ from preprocess_data import (
 from analyze_data import anomaly_detection
 from train_models import chronological_split, train_and_predict
 
+DEFAULT_UPLOAD_FILE = "aquasense_test_data_real_2.csv"
 DATA_FILE = "aquasense_analysed.csv"
 
 # Minimum |deviation from expected energy| (%) for a day to be worth flagging as a
@@ -249,6 +250,33 @@ def load_data():
 
 
 @st.cache_data
+def process_raw(source):
+    df = pd.read_csv(source)
+    df = df.rename(columns={
+        "Date/Time": "Date",
+        "Energy Consumption (kW)": "Energy_Consumption_kWh",
+        "Water Production (L/min)": "Water_Production_m3",
+        "Temperature (C)": "Temperature_C",
+        "Feed Pressure (psi)": "Feed_Pressure_psi",
+        "Feed Conductivity (mS/cm)": "Feed_Conductivity_mScm",
+    })
+    df["Date"] = pd.to_datetime(df["Date"])
+
+    df = remove_duplicates(df)
+    df = format_dates(df)
+    df = handle_missing_values(df)
+    df = calculate_sec(df)
+    if "Feed_Pressure_psi" in df.columns and "Feed_Conductivity_mScm" in df.columns:
+        df = calculate_ndp(df)
+    df = flag_outliers(df)
+
+    df = anomaly_detection(df)
+
+    df = train_and_predict(df)
+    return df
+
+
+@st.cache_data
 def train_models(df):
     features = ["Water_Production_m3", "Temperature_C", "Seasonal_Demand_Index"]
     features = [f for f in features if f in df.columns]
@@ -370,28 +398,9 @@ with st.sidebar:
     )
 
 if uploaded_file is not None:
-    df = pd.read_csv(uploaded_file)
-    df = df.rename(columns={
-        "Date/Time": "Date",
-        "Energy Consumption (kW)": "Energy_Consumption_kWh",
-        "Water Production (L/min)": "Water_Production_m3",
-        "Temperature (C)": "Temperature_C",
-        "Feed Pressure (psi)": "Feed_Pressure_psi",
-        "Feed Conductivity (mS/cm)": "Feed_Conductivity_mScm",
-    })
-    df["Date"] = pd.to_datetime(df["Date"])
-
-    df = remove_duplicates(df)
-    df = format_dates(df)
-    df = handle_missing_values(df)
-    df = calculate_sec(df)
-    if "Feed_Pressure_psi" in df.columns and "Feed_Conductivity_mScm" in df.columns:
-        df = calculate_ndp(df)
-    df = flag_outliers(df)
-
-    df = anomaly_detection(df)
-
-    df = train_and_predict(df)
+    df = process_raw(uploaded_file)
+elif os.path.exists(DEFAULT_UPLOAD_FILE):
+    df = process_raw(DEFAULT_UPLOAD_FILE)
 else:
     try:
         df = load_data()
@@ -974,7 +983,7 @@ elif page == "Reports":
 # ---------------------------------------------------------------------
 elif page == "Settings":
     with card():
-        st.write("**Data source:**", DATA_FILE)
+        st.write("**Data source:**", "uploaded file" if uploaded_file is not None else (DEFAULT_UPLOAD_FILE if os.path.exists(DEFAULT_UPLOAD_FILE) else DATA_FILE))
         st.write("**Rows loaded:**", len(df))
         st.write("**Date range:**", df["Date"].min().date(), "to", df["Date"].max().date())
 
